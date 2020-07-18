@@ -518,6 +518,10 @@ class MatBlock(base.Mat):
     def _kernel_args_(self):
         return (self.handle.handle, )
 
+    @utils.cached_property
+    def _wrapper_cache_key_(self):
+        return (type(self._parent), self._parent.dtype, self.dims)
+
     @property
     def assembly_state(self):
         # Track our assembly state only
@@ -601,6 +605,7 @@ class Mat(base.Mat):
     for each element in the :class:`Sparsity`."""
 
     def __init__(self, *args, **kwargs):
+        self.mat_type = kwargs.pop("mat_type", None)
         base.Mat.__init__(self, *args, **kwargs)
         self._init()
         self.assembly_state = Mat.ASSEMBLED
@@ -610,15 +615,17 @@ class Mat(base.Mat):
 
     @utils.cached_property
     def _kernel_args_(self):
-        return (self.handle.handle, )
+        return tuple(a.handle.handle for a in self)
 
     @collective
     def _init(self):
         if not self.dtype == PETSc.ScalarType:
             raise RuntimeError("Can only create a matrix of type %s, %s is not supported"
                                % (PETSc.ScalarType, self.dtype))
+        if self.mat_type == "dense":
+            self._init_dense()
         # If the Sparsity is defined on MixedDataSets, we need to build a MatNest
-        if self.sparsity.shape > (1, 1):
+        elif self.sparsity.shape > (1, 1):
             if self.sparsity.nested:
                 self._init_nest()
                 self._nested = True
@@ -626,6 +633,31 @@ class Mat(base.Mat):
                 self._init_monolithic()
         else:
             self._init_block()
+
+    def _init_dense(self):
+        mat = PETSc.Mat()
+        rset, cset = self.sparsity.dsets
+        rlgmap = rset.unblocked_lgmap
+        clgmap = cset.unblocked_lgmap
+        mat.createDense(size=((self.nrows, None), (self.ncols, None)),
+                        bsize=1,
+                        comm=self.comm)
+        mat.setLGMap(rmap=rlgmap, cmap=clgmap)
+        self.handle = mat
+        self._blocks = []
+        rows, cols = self.sparsity.shape
+        for i in range(rows):
+            row = []
+            for j in range(cols):
+                row.append(MatBlock(self, i, j))
+            self._blocks.append(row)
+        mat.setOption(mat.Option.IGNORE_OFF_PROC_ENTRIES, False)
+        mat.setOption(mat.Option.SUBSET_OFF_PROC_ENTRIES, True)
+        mat.setUp()
+        # Put zeros in all the places we might eventually put a value.
+        with timed_region("MatZeroInitial"):
+            mat.zeroEntries()
+        mat.assemble()
 
     def _init_monolithic(self):
         mat = PETSc.Mat()
@@ -760,6 +792,7 @@ class Mat(base.Mat):
         blocks in matrices."""
         # One of the path entries was not an Arg.
         if path == (None, None):
+            lgmaps, = lgmaps
             assert all(l is None for l in lgmaps)
             return _make_object('Arg',
                                 data=self.handle.getPythonContext().global_,
