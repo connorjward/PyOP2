@@ -55,7 +55,7 @@ from pyop2.petsc_base import Global, GlobalDataSet       # noqa: F401
 from pyop2.petsc_base import Dat, MixedDat, Mat          # noqa: F401
 from pyop2.exceptions import *  # noqa: F401
 from pyop2.mpi import collective
-from pyop2.profiling import timed_region
+from pyop2.profiling import timed_function, timed_region
 from pyop2.utils import cached_property, get_petsc_dir
 
 import loopy
@@ -102,6 +102,7 @@ class JITModule(base.JITModule):
             self._initialized = True
 
     @collective
+    @timed_function("pyop2.sequential.JITModule:__call__")
     def __call__(self, *args):
         return self._fun(*args)
 

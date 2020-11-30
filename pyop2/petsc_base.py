@@ -44,7 +44,7 @@ from pyop2 import sparsity
 from pyop2 import utils
 from pyop2.base import _make_object, Subset
 from pyop2.mpi import collective
-from pyop2.profiling import timed_region
+from pyop2.profiling import timed_function, timed_region
 
 
 class DataSet(base.DataSet):
@@ -787,6 +787,7 @@ class Mat(base.Mat):
             mat = _DatMat(self.sparsity)
         self.handle = mat
 
+    @timed_function("pyop2.petsc_base.Mat:__call__")
     def __call__(self, access, path, lgmaps=None, unroll_map=False):
         """Override the parent __call__ method in order to special-case global
         blocks in matrices."""
