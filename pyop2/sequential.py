@@ -103,7 +103,15 @@ class JITModule(base.JITModule):
 
     @collective
     def __call__(self, *args):
-        return self._fun(*args)
+        import cppyy.ll
+        new_args = [
+            cppyy.ll.cast["int32_t"](int(args[0])),
+            cppyy.ll.cast["int32_t"](int(args[1])),
+            cppyy.ll.cast["double*"](args[2]),
+            cppyy.ll.cast["double*"](args[3]),
+            cppyy.ll.cast["int32_t*"](args[4])
+        ]
+        return self._fun(*new_args)
 
     @cached_property
     def _wrapper_name(self):

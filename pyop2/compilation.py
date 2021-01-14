@@ -495,6 +495,9 @@ def load(jitmodule, extension, fn_name, cppargs=[], ldargs=[],
     import cppyy
     cppyy.add_include_path("/home/connor/local/opt/firedrake/src/petsc/include")
     cppyy.add_include_path("/home/connor/local/opt/firedrake/src/petsc/default/include")
+    cppyy.add_library_path("/home/connor/local/opt/firedrake/src/petsc/lib")
+    cppyy.add_library_path("/home/connor/local/opt/firedrake/src/petsc/default/lib")
+    cppyy.load_library("petsc")
     code = jitmodule.code_to_compile
     cppyy.cppdef(code)
     fn = getattr(cppyy.gbl, fn_name)
