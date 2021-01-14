@@ -470,27 +470,34 @@ def load(jitmodule, extension, fn_name, cppargs=[], ldargs=[],
     else:
         raise ValueError("Don't know how to compile code of type %r" % type(jitmodule))
 
-    platform = sys.platform
-    cpp = extension == "cpp"
-    if not compiler:
-        compiler = configuration["compiler"]
-    if platform.find('linux') == 0:
-        if compiler == 'icc':
-            compiler = LinuxIntelCompiler(cppargs, ldargs, cpp=cpp, comm=comm)
-        elif compiler == 'gcc':
-            compiler = LinuxCompiler(cppargs, ldargs, cpp=cpp, comm=comm)
-        else:
-            raise CompilationError("Unrecognized compiler name '%s'" % compiler)
-    elif platform.find('darwin') == 0:
-        compiler = MacCompiler(cppargs, ldargs, cpp=cpp, comm=comm)
-    else:
-        raise CompilationError("Don't know what compiler to use for platform '%s'" %
-                               platform)
-    dll = compiler.get_so(code, extension)
+    # platform = sys.platform
+    # cpp = extension == "cpp"
+    # if not compiler:
+    #     compiler = configuration["compiler"]
+    # if platform.find('linux') == 0:
+    #     if compiler == 'icc':
+    #         compiler = LinuxIntelCompiler(cppargs, ldargs, cpp=cpp, comm=comm)
+    #     elif compiler == 'gcc':
+    #         compiler = LinuxCompiler(cppargs, ldargs, cpp=cpp, comm=comm)
+    #     else:
+    #         raise CompilationError("Unrecognized compiler name '%s'" % compiler)
+    # elif platform.find('darwin') == 0:
+    #     compiler = MacCompiler(cppargs, ldargs, cpp=cpp, comm=comm)
+    # else:
+    #     raise CompilationError("Don't know what compiler to use for platform '%s'" %
+    #                            platform)
+    # dll = compiler.get_so(code, extension)
 
-    fn = getattr(dll, fn_name)
-    fn.argtypes = code.argtypes
-    fn.restype = restype
+    # fn = getattr(dll, fn_name)
+    # fn.argtypes = code.argtypes
+    # fn.restype = restype
+
+    import cppyy
+    cppyy.add_include_path("/home/connor/local/opt/firedrake/src/petsc/include")
+    cppyy.add_include_path("/home/connor/local/opt/firedrake/src/petsc/default/include")
+    code = jitmodule.code_to_compile
+    cppyy.cppdef(code)
+    fn = getattr(cppyy.gbl, fn_name)
     return fn
 
 
